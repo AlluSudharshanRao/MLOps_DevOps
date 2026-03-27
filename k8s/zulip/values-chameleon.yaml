@@ -1,0 +1,62 @@
+# Team overrides for Helm install of Zulip (docker-zulip chart).
+# Required secrets and hostnames live in values-secret.yaml (gitignored); see
+# values-secret.yaml.example in this folder.
+#
+# Chart path upstream: docker-zulip/helm/zulip (not kubernetes/chart/zulip).
+
+# k3s default provisioner
+zulip:
+  persistence:
+    storageClass: "local-path"
+
+# Reach the UI without an ingress controller (demo / campus firewall).
+# For production, use ingress + TLS instead and set service.type back to ClusterIP.
+service:
+  type: NodePort
+
+postgresql:
+  primary:
+    persistence:
+      storageClass: "local-path"
+      size: "15Gi"
+
+# Optional: tighten resources after `kubectl top` (see infrastructure-requirements.md)
+# postgresql:
+#   primary:
+#     resources:
+#       requests:
+#         cpu: 500m
+#         memory: 1Gi
+#       limits:
+#         cpu: "2"
+#         memory: 4Gi
+#
+# redis:
+#   master:
+#     persistence:
+#       enabled: true
+#       storageClass: local-path
+#       size: 4Gi
+#
+# rabbitmq:
+#   persistence:
+#     enabled: true
+#     storageClass: local-path
+#     size: 4Gi
+#
+# zulip:
+#   resources:
+#     requests:
+#       cpu: 500m
+#       memory: 2Gi
+#     limits:
+#       cpu: "4"
+#       memory: 8Gi
+#
+# ingress:
+#   enabled: true
+#   className: nginx
+#   tls:
+#     - secretName: zulip-tls-proj15
+#       hosts:
+#         - zulip.example.edu

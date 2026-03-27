@@ -1,5 +1,6 @@
 # Secrets and local env (never commit)
 .env
+venv
 .env.*
 !.env.example
 *.pem
