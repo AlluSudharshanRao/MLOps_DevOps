@@ -1,0 +1,33 @@
+# Secrets and local env (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*-kubeconfig
+kubeconfig
+inventory.ini
+values-secret.yaml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+terraform.tfvars
+**/terraform.tfvars
+
+# Vendored upstream clones (optional local copies)
+vendor/docker-zulip/
+
+# Python / ML
+.venv/
+__pycache__/
+.pytest_cache/
+.mlflow/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
