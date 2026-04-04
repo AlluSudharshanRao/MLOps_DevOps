@@ -14,10 +14,12 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 ## Current implementation status
 
 - OpenStack VM + networking + floating IP provisioned and reachable.
-- k3s installed and verified.
-- MLflow deployed with persistent volume in Kubernetes.
-- Zulip deployed from `docker-zulip/helm/zulip`; pods running and org-creation flow verified.
-- Detailed docs updated under `Docs/initial-implementation/devops/`.
+- k3s installed and verified (default **Traefik** ingress controller).
+- **MLflow** in `ml-platform`: Deployment + PVC + ClusterIP Service + **Ingress** (`mlflow.<fip>.nip.io`), TLS via shared secret `chameleon-nip-tls` (self-signed for demos).
+- **Zulip** from `docker-zulip/helm/zulip`: ClusterIP Service + **Ingress** (`zulip.<fip>.nip.io`), same TLS pattern; values in `k8s/zulip/values-chameleon.yaml` include proxy trust (`LOADBALANCER_IPS` / `SETTING_*`) for Traefik.
+- Browser access: **HTTPS** on port **443** (OpenStack SG must allow **80** and **443**). Chrome shows “Not secure” for self-signed certs until trusted or replaced with Let’s Encrypt.
+- Org creation: **`/new/`** enabled for class demos via `SETTING_OPEN_REALM_CREATION` (see docs); single-use CLI links still work.
+- Detailed ops docs: `Docs/initial-implementation/devops/` (start with `README_docs_guide.md`).
 
 ## Repository structure
 

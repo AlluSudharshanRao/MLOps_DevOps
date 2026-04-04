@@ -4,8 +4,8 @@ Each row is one runnable container image. Training, serving, and data owners fil
 
 | Role | Container / workload name | Purpose | Dockerfile or Compose | Kubernetes manifest (path in repo) | Current status |
 |------|---------------------------|---------|------------------------|-------------------------------------|----------------|
-| Platform | `mlflow-tracking` | Shared experiment tracking | Bitnami MLflow image in manifest | `k8s/platform/mlflow/` | Deployed; PVC bound; service reachable (NodePort/tunnel path validated) |
-| Platform | `zulip-server` + subcharts (`postgresql`, `redis`, `rabbitmq`, `memcached`) | Base open-source product | App source: [zulip/zulip](https://github.com/zulip/zulip); deployment/chart: [docker-zulip](https://github.com/zulip/docker-zulip) | `k8s/zulip/values-chameleon.yaml`, `k8s/zulip/values-secret.yaml.example`, Ansible `infra/ansible/playbooks/deploy_zulip.yml` | Deployed; pods running; org creation link generated and opened |
+| Platform | `mlflow-tracking` | Shared experiment tracking | Bitnami MLflow image in manifest | `k8s/platform/mlflow/` (+ `ingress.yaml`, TLS secret `chameleon-nip-tls`) | Deployed; PVC bound; **HTTPS** via k3s **Traefik** Ingress (`mlflow.<fip>.nip.io`) |
+| Platform | `zulip-server` + subcharts (`postgresql`, `redis`, `rabbitmq`, `memcached`) | Base open-source product | App source: [zulip/zulip](https://github.com/zulip/zulip); deployment/chart: [docker-zulip](https://github.com/zulip/docker-zulip) | `k8s/zulip/values-chameleon.yaml`, `k8s/zulip/values-secret.yaml.example`, Ansible `infra/ansible/playbooks/deploy_zulip.yml` | Deployed; **ClusterIP** + **Ingress**; **HTTPS** (`zulip.<fip>.nip.io`); org creation verified |
 | Training | _TBD — e.g. `tone-train`_ | Training job image | _link when added_ | _link when added_ | Pending |
 | Serving | _TBD — e.g. `tone-serving`_ | Inference API | _link when added_ | _link when added_ | Pending |
 | Data | _TBD — e.g. `data-batch`_ | ETL / batch features | _link when added_ | _link when added_ | Pending |

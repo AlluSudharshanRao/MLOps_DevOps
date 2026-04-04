@@ -67,13 +67,23 @@ Working directory:
 cd infra/ansible
 ```
 
+**Controller setup (WSL/Linux):** use a dedicated venv so `ansible-core` is complete:
+
+```bash
+python3 -m venv ~/.venv-ansible-mlops
+source ~/.venv-ansible-mlops/bin/activate
+pip install -U pip ansible-core
+```
+
+**Inventory:** SSH keys on `/mnt/c/...` often stay world-readable → OpenSSH refuses them. Copy `.pem` to `~/.ssh/`, `chmod 600`, set `ansible_ssh_private_key_file=~/.ssh/...` in `inventory.ini`.
+
 Install k3s:
 
 ```bash
 ansible-playbook -i inventory.ini playbooks/k3s_install.yml
 ```
 
-Deploy namespaces + MLflow manifests:
+Deploy namespaces + MLflow manifests (includes **MLflow Ingress**):
 
 ```bash
 ansible-playbook -i inventory.ini playbooks/deploy_platform.yml
@@ -81,7 +91,8 @@ ansible-playbook -i inventory.ini playbooks/deploy_platform.yml
 
 Why this step mattered:
 - Copies `k8s/` manifests to `/opt/mlops_project/k8s/` on VM.
-- Ensures values file path used by Zulip playbook exists on VM.
+- Applies `kubectl apply -k` for MLflow (Deployment, PVC, Service, **Ingress**).
+- Ensures `values-chameleon.yaml` exists on VM for Helm.
 
 ---
 
@@ -137,53 +148,58 @@ Successful endpoint:
 
 ---
 
-## 6) Runtime verification commands
+## 6) TLS Secret for Ingress (on VM)
 
-Watch pod startup:
+After generating `tls.crt` / `tls.key` (see `RUNBOOK_zulip_access_after_setup.md`):
+
+```bash
+kubectl create secret tls chameleon-nip-tls -n zulip --cert=tls.crt --key=tls.key --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret tls chameleon-nip-tls -n ml-platform --cert=tls.crt --key=tls.key --dry-run=client -o yaml | kubectl apply -f -
+```
+
+---
+
+## 7) Runtime verification commands
 
 ```bash
 kubectl get pods -n zulip -w
+kubectl get ingress -A
+kubectl describe ingress -n zulip zulip-proj15
+kubectl get svc -n zulip
+kubectl get pvc -n zulip
 ```
 
-Create one-time org registration link:
+**From laptop (Windows):** `Test-NetConnection -ComputerName <FIP> -Port 443` (and **80**).
+
+Stable org creation (when enabled): open **`https://zulip.<fip>.nip.io/new/`**.
+
+Optional CLI single-use link:
 
 ```bash
 kubectl exec -n zulip zulip-proj15-0 -c zulip -- runuser -u zulip -- \
   /home/zulip/deployments/current/manage.py generate_realm_creation_link
 ```
 
-Service/pvc checks:
+Verify env after **`helm upgrade`**:
 
 ```bash
-kubectl get svc -n zulip
-kubectl get pvc -n zulip
+kubectl exec -n zulip zulip-proj15-0 -c zulip -- env | grep -E 'SETTING_EXTERNAL|LOADBALANCER|OPEN_REALM'
+kubectl exec -n zulip zulip-proj15-0 -c zulip -- grep -E '^\[loadbalancer\]|^ips' /etc/zulip/zulip.conf
 ```
 
 ---
 
-## 7) Access/tunnel commands used
+## 8) Legacy access (optional)
 
-Correct port-forward syntax on VM:
+Port-forward (debug only; production path is **Ingress :443**):
 
 ```bash
 kubectl port-forward -n zulip svc/zulip-proj15 8080:80
 ```
 
-Alternative with explicit bind:
-
-```bash
-kubectl port-forward -n zulip --address 127.0.0.1 svc/zulip-proj15 8080:80
-```
-
-Windows/Cmder SSH tunnel (key required):
-
-```bash
-ssh -i C:\Users\rithw\OneDrive\Desktop\cmder\sa9876.pem -L 8080:127.0.0.1:8080 -N cc@129.114.26.117
-```
-
 ---
 
-## 8) Important failed commands and what they taught us
+## 9) Important failed commands and what they taught us
 
 Wrong chart path attempt:
 
@@ -217,21 +233,25 @@ Schema/YAML errors encountered:
 - `rabbitmq/redis password got number, want string` -> numeric values not quoted.
 - `could not find expected ':'` -> YAML syntax/indent issue in `values-secret.yaml`.
 
+Ansible / runtime:
+- `ModuleNotFoundError: ansible.module_utils.six.moves` -> reinstall **`ansible-core`** in a clean **venv** (not broken Conda mix).
+- `Permissions ... pem are too open` -> key under **`~/.ssh/`** with **`chmod 600`**.
+- Zulip **`ProxyMisconfigurationError`** -> set **`LOADBALANCER_IPS`** env (e.g. `10.42.0.0/16`) so **`zulip.conf`** trusts Traefik; confirm with `env` + `grep ips /etc/zulip/zulip.conf`.
+- Traefik **404** on realm URL -> **`SETTING_EXTERNAL_HOST`** must match Ingress (**`zulip.<ip>.nip.io`**); **`helm upgrade`** + pod restart.
+- **`/new/`** “link required” -> **`SETTING_OPEN_REALM_CREATION: "True"`** in **`~/values-secret.yaml`** (or equivalent), then **`helm upgrade`**.
+
 ---
 
-## 9) Current “known-good” validation commands
+## 10) Current “known-good” validation commands
 
 ```bash
-# verify release objects
 kubectl get pods -n zulip
-kubectl get svc -n zulip
-
-# re-run org-link generation if needed
-kubectl exec -n zulip zulip-proj15-0 -c zulip -- runuser -u zulip -- \
-  /home/zulip/deployments/current/manage.py generate_realm_creation_link
+kubectl get ingress -A
+kubectl get secret chameleon-nip-tls -n zulip
+curl -skI -H "Host: zulip.129.114.26.117.nip.io" https://127.0.0.1/
 ```
 
 Status reached:
-- `zulip-proj15-0` became `1/1 Running`.
-- Zulip org creation page reachable.
+- `zulip-proj15-0` `1/1 Running`; **HTTPS** UI and org creation work in browser.
+- MLflow UI at **`https://mlflow.<fip>.nip.io/`**.
 

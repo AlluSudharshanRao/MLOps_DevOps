@@ -1,6 +1,7 @@
 - name: Deploy namespaces + MLflow platform service
   hosts: chameleon
   become: true
+  gather_facts: false
   vars:
     kubeconfig_path: "/home/{{ ansible_user }}/.kube/config"
     repo_root: "/opt/mlops_project"

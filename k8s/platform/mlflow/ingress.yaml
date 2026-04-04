@@ -1,0 +1,24 @@
+# Traefik is the default ingress controller on k3s. Replace hosts with
+# mlflow.<YOUR_FLOATING_IP>.nip.io. Use the same tls.crt/tls.key as Zulip (SAN includes both names).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mlflow
+  namespace: ml-platform
+spec:
+  ingressClassName: traefik
+  tls:
+    - secretName: chameleon-nip-tls
+      hosts:
+        - mlflow.129.114.26.117.nip.io
+  rules:
+    - host: mlflow.129.114.26.117.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mlflow
+                port:
+                  number: 5000

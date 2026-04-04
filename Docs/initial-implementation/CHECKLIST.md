@@ -10,8 +10,8 @@
 - [x] Chameleon resources named with `projNN` suffix (`proj15`) and running.
 - [x] **IaC:** `infra/terraform/openstack/` applied (VM + FIP + routing path validated).
 - [x] **CaC:** Ansible path used (`infra/ansible/`): k3s, platform manifests, Zulip Helm deploy.
-- [x] MLflow deployed in `ml-platform` (PVC-backed), pod/service validated.
-- [x] Zulip deployed via Helm in `zulip` namespace; pods running; org creation link generated and page reachable.
+- [x] MLflow deployed in `ml-platform` (PVC-backed); reachable via **Ingress** + HTTPS (`mlflow.<fip>.nip.io`).
+- [x] Zulip deployed via Helm in `zulip` namespace; **Traefik Ingress** + TLS; `SETTING_EXTERNAL_HOST` aligned with Ingress host; proxy/load-balancer IPs configured; org creation (including stable `/new/` for demos) verified in browser.
 - [ ] `Docs/initial-implementation/devops/infrastructure-requirements.md` filled with measured CPU/mem/GPU evidence (`kubectl top` capture still pending).
 - [ ] Demo videos: (1) Zulip in K8s end-to-end, (2) platform services (e.g. MLflow) in K8s end-to-end.
 - [ ] No secrets in Git; disclose LLM-assisted commits per course policy.

@@ -22,9 +22,10 @@ Companion docs:
 - **IaC**: Terraform in `infra/terraform/openstack/`
 - **CaC**: Ansible in `infra/ansible/`
 - **Cluster**: single-node `k3s` on VM
+- **Ingress / TLS**: k3s default **Traefik**; **Ingress** resources for MLflow and Zulip; TLS Secret **`chameleon-nip-tls`** (self-signed) in `ml-platform` and `zulip`.
 - **Apps**:
-  - MLflow from `k8s/platform/mlflow/`
-  - Zulip via Helm chart from `docker-zulip/helm/zulip`
+  - **MLflow** from `k8s/platform/mlflow/` (Kustomize: Deployment, PVC, Service, **Ingress** → `mlflow.<floating-ip>.nip.io`).
+  - **Zulip** via Helm (`docker-zulip/helm/zulip`): **ClusterIP** + **Ingress** → `zulip.<floating-ip>.nip.io`; repo overlay `k8s/zulip/values-chameleon.yaml`.
 
 High-level flow:
 1. Reserve resources on Chameleon (lease/reservation).
@@ -124,8 +125,11 @@ Inventory used:
 
 [chameleon:vars]
 ansible_user=cc
-ansible_ssh_private_key_file=/mnt/c/Users/rithw/OneDrive/Desktop/cmder/sa9876.pem
+# WSL: use a key under ~/ssh with chmod 600 — OpenSSH rejects /mnt/c/.../*.pem (0777).
+ansible_ssh_private_key_file=~/.ssh/sa9876_chameleon.pem
 ```
+
+**Ansible controller:** use a dedicated **venv** with `pip install ansible-core` (Conda `base` mixes caused `ModuleNotFoundError: ansible.module_utils.six.moves`). See `infra/ansible/README.md`.
 
 ### 5.1 Install k3s
 
@@ -142,11 +146,32 @@ ansible-playbook -i inventory.ini playbooks/deploy_platform.yml
 This copies `k8s/` manifests to VM path:
 - `/opt/mlops_project/k8s/...`
 
+Applies **namespaces** and **MLflow** (including **Ingress** for MLflow).
+
 ---
 
-## 6) Zulip Helm preparation and deploy
+## 6) TLS Secret for Ingress (VM, one-time or on cert rotation)
 
-### 6.1 On VM (`cc@mlops-k8s-proj15`)
+Self-signed cert covering **both** Ingress hostnames (SAN), then Secret in both namespaces:
+
+```bash
+cd /tmp
+openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
+  -keyout tls.key -out tls.crt \
+  -subj "/CN=zulip.129.114.26.117.nip.io" \
+  -addext "subjectAltName=DNS:zulip.129.114.26.117.nip.io,DNS:mlflow.129.114.26.117.nip.io"
+
+kubectl create secret tls chameleon-nip-tls -n zulip --cert=tls.crt --key=tls.key --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret tls chameleon-nip-tls -n ml-platform --cert=tls.crt --key=tls.key --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Details: `RUNBOOK_zulip_access_after_setup.md`.
+
+---
+
+## 7) Zulip Helm preparation and deploy
+
+### 7.1 On VM (`cc@mlops-k8s-proj15`)
 
 Clone chart source:
 
@@ -179,8 +204,11 @@ Important rules for `~/values-secret.yaml`:
 - quote secret values, especially numeric-looking passwords
 - keep `memcached`, `rabbitmq`, `redis`, `postgresql` as top-level keys
 - only `environment` is nested under `zulip`
+- **`SETTING_EXTERNAL_HOST`** must equal the **Ingress** host (e.g. `zulip.129.114.26.117.nip.io`), **not** bare `<ip>.nip.io` — otherwise Traefik returns **404** for wrong `Host`.
+- Include **`LOADBALANCER_IPS`** (e.g. `10.42.0.0/16`) and **`SETTING_OPEN_REALM_CREATION: "True"`** if you rely on the secret file for env merge (see `values-secret.yaml.example`).
+- Avoid duplicating **`ZULIP_CUSTOM_SETTINGS`** in the secret unless it contains **all** needed lines; a partial block can override `values-chameleon.yaml` and drop proxy/realm settings.
 
-### 6.2 From laptop/WSL (Ansible controller)
+### 7.2 From laptop/WSL (Ansible controller)
 
 ```bash
 cd /mnt/c/Users/rithw/OneDrive/Desktop/MLOps_Project/infra/ansible
@@ -196,57 +224,48 @@ Latest successful result:
 
 ---
 
-## 7) Runtime verification commands used
-
-Watch Zulip namespace pods:
+## 8) Runtime verification commands used
 
 ```bash
 kubectl get pods -n zulip -w
+kubectl get ingress -A
+kubectl get secret chameleon-nip-tls -n zulip
+kubectl get secret chameleon-nip-tls -n ml-platform
 ```
 
 Observed final state:
 - `zulip-proj15-0` -> `1/1 Running`
 - memcached/postgresql/rabbitmq/redis pods running
+- Ingress hosts: `zulip.129.114.26.117.nip.io`, `mlflow.129.114.26.117.nip.io`
 
-Create org link:
+**Browser (primary):**
+
+- Zulip: `https://zulip.129.114.26.117.nip.io/` (self-signed → Chrome may show “Not secure” until cert is trusted or replaced).
+- MLflow: `https://mlflow.129.114.26.117.nip.io/`
+- Stable org creation (demo): `https://zulip.129.114.26.117.nip.io/new/` when `SETTING_OPEN_REALM_CREATION` is enabled.
+
+**Optional single-use link (CLI):**
 
 ```bash
 kubectl exec -n zulip zulip-proj15-0 -c zulip -- runuser -u zulip -- \
   /home/zulip/deployments/current/manage.py generate_realm_creation_link
 ```
 
-Generated URL pattern observed:
-- `https://129.114.26.117.nip.io/new/<token>`
+Printed URL must use the **same host** as `SETTING_EXTERNAL_HOST` (e.g. `https://zulip.129.114.26.117.nip.io/new/<token>`). After any change to `SETTING_EXTERNAL_HOST`, run **`helm upgrade`** and recycle the pod so env matches.
 
 ---
 
-## 8) Access and forwarding commands used
+## 9) Legacy access (optional)
 
-### 8.1 Correct service port-forward syntax
+Earlier milestone used **NodePort + VM nginx on 8080**; current design uses **Ingress + 443**. For local debugging only:
 
 ```bash
 kubectl port-forward -n zulip svc/zulip-proj15 8080:80
 ```
 
-(Previous invalid command used `127.0.0.1:8080:80`, which is not accepted in that position.)
-
-Optional explicit bind:
-
-```bash
-kubectl port-forward -n zulip --address 127.0.0.1 svc/zulip-proj15 8080:80
-```
-
-### 8.2 SSH local tunnel from Windows
-
-If using Cmder/Windows OpenSSH, key must be passed explicitly:
-
-```bash
-ssh -i C:\Users\rithw\OneDrive\Desktop\cmder\sa9876.pem -L 8080:127.0.0.1:8080 -N cc@129.114.26.117
-```
-
 ---
 
-## 9) Issues encountered and fixes (chronological)
+## 10) Issues encountered and fixes (chronological)
 
 1. **Terraform scheduler hints / no valid host**
    - Fix: use reservation UUID as `flavor_id`.
@@ -260,8 +279,9 @@ ssh -i C:\Users\rithw\OneDrive\Desktop\cmder\sa9876.pem -L 8080:127.0.0.1:8080 -
 4. **FIP association issues**
    - Fix: use floating IP `.address`, and lookup VM port via Neutron data source.
 
-5. **Ansible environment issues on Windows**
-   - Fix: run in WSL clean venv with compatible `ansible-core`.
+5. **Ansible on WSL**
+   - Broken Conda `ansible-core` → `ModuleNotFoundError: ansible.module_utils.six.moves`: use **`python -m venv ~/.venv-ansible-mlops`** + `pip install ansible-core`.
+   - SSH key on `/mnt/c/.../*.pem` → “permissions too open”: copy key to **`~/.ssh/`** and `chmod 600`; point `inventory.ini` there.
 
 6. **Wrong chart path confusion**
    - Correct path: `docker-zulip/helm/zulip` (not `kubernetes/chart/zulip`).
@@ -274,24 +294,33 @@ ssh -i C:\Users\rithw\OneDrive\Desktop\cmder\sa9876.pem -L 8080:127.0.0.1:8080 -
 
 8. **Raw HTML Zulip page (no styling)**
    - Usually host/scheme/static asset mismatch while using mixed access methods.
-   - Use consistent host (`SETTING_EXTERNAL_HOST`) and access path.
+   - Align `SETTING_EXTERNAL_HOST`, Ingress `host`, and browser URL (subdomain `zulip.<ip>.nip.io`).
+
+9. **Browser timeout on HTTPS**
+   - OpenStack security group must allow **TCP 443** (and **80** as needed). `Test-NetConnection <FIP> -Port 443`.
+
+10. **Traefik 404 on realm link**
+    - Ingress only matches **`zulip.<ip>.nip.io`**; bare **`<ip>.nip.io`** has no rule → 404.
+
+11. **Zulip 500 `ProxyMisconfigurationError` / “Incorrect reverse proxy IP”**
+    - Zulip’s **nginx** reads trusted proxies from **`zulip.conf`**, written from env **`LOADBALANCER_IPS`** (comma-separated CIDRs), not from Django-only `ZULIP_CUSTOM_SETTINGS`.
+    - Trust k3s pod network (e.g. **`10.42.0.0/16`**) and ensure the var is present in the **running** pod: `kubectl exec ... env | grep LOADBALANCER`.
+
+12. **`/new/` shows “Organization creation link required”**
+    - Set **`SETTING_OPEN_REALM_CREATION: "True"`** in `zulip.environment` (recommended in **`~/values-secret.yaml`** so it is not lost when `ZULIP_CUSTOM_SETTINGS` overrides merge). **`helm upgrade`** + pod restart.
 
 ---
 
-## 10) Current status (where we are now)
+## 11) Current status (where we are now)
 
-- Terraform provisioning: complete and validated.
-- VM + floating IP + SSH: working.
-- k3s install: complete.
-- MLflow deploy: complete (pod/PVC previously verified).
-- Zulip Helm deploy: successful (`failed=0`).
-- Zulip pods: running.
-- Org creation link generated and reachable.
-- Remaining: finalize stable browser access mode (host consistency for static assets), complete org setup UI, collect demo evidence/screenshots, and update requirement docs.
+- Terraform, VM, FIP, SSH: validated.
+- k3s + Traefik Ingress: **MLflow** and **Zulip** exposed on **HTTPS** (`mlflow.*` / `zulip.*` nip.io hosts); self-signed TLS at Ingress.
+- Zulip: proxy/load-balancer settings applied; **website and org creation** verified in browser.
+- Remaining for milestone: **`infrastructure-requirements.md`** evidence (`kubectl top`), **demo videos**, LLM disclosure on commits, joint **containers-matrix** rows for teammates.
 
 ---
 
-## 11) Start-to-current command quick sheet
+## 12) Start-to-current command quick sheet
 
 ```bash
 # Terraform
@@ -325,9 +354,21 @@ ansible-playbook -i inventory.ini playbooks/deploy_zulip.yml \
   -e zulip_values_file=/opt/mlops_project/k8s/zulip/values-chameleon.yaml \
   -e zulip_secret_values_file=/home/cc/values-secret.yaml
 
-# Verify + create org link
-kubectl get pods -n zulip -w
-kubectl exec -n zulip zulip-proj15-0 -c zulip -- runuser -u zulip -- \
-  /home/zulip/deployments/current/manage.py generate_realm_creation_link
+# TLS secrets (VM; after openssl — see §6)
+kubectl create secret tls chameleon-nip-tls -n zulip --cert=/tmp/tls.crt --key=/tmp/tls.key --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret tls chameleon-nip-tls -n ml-platform --cert=/tmp/tls.crt --key=/tmp/tls.key --dry-run=client -o yaml | kubectl apply -f -
+
+# Re-apply MLflow Ingress (from laptop Ansible deploy_platform copies k8s/)
+# On VM: kubectl apply -k /opt/mlops_project/k8s/platform/mlflow/
+
+# Helm upgrade Zulip after editing values-secret / values-chameleon
+cd ~/docker-zulip/helm/zulip && helm upgrade --install zulip-proj15 . --namespace zulip \
+  --kubeconfig "$HOME/.kube/config" \
+  -f /opt/mlops_project/k8s/zulip/values-chameleon.yaml -f "$HOME/values-secret.yaml"
+kubectl delete pod -n zulip zulip-proj15-0
+
+# Verify
+kubectl get ingress -A
+kubectl get pods -n zulip
 ```
 

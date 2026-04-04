@@ -35,3 +35,5 @@ Current status should be treated as authoritative in:
 - `FLOW_start_to_current.md`
 - `EXPLANATION_so_far.md`
 - `infrastructure-requirements.md`
+
+**Apr 2026 update:** Runtime access is **Traefik Ingress + HTTPS (443)** for Zulip and MLflow (`zulip.<fip>.nip.io`, `mlflow.<fip>.nip.io`). Older notes that reference **NodePort + VM nginx :8080** are legacy unless you explicitly keep that path; see `RUNBOOK_zulip_access_after_setup.md`.

@@ -8,11 +8,39 @@
 zulip:
   persistence:
     storageClass: "local-path"
+  environment:
+    # Applied last by docker entrypoint (after ZULIP_CUSTOM_SETTINGS). Use this so a secret file
+    # that replaces ZULIP_CUSTOM_SETTINGS cannot leave OPEN_REALM_CREATION off by accident.
+    SETTING_OPEN_REALM_CREATION: "True"
+    # Required for Zulip *nginx* (zulip.conf) — not the same as Django-only ZULIP_CUSTOM_SETTINGS.
+    # Comma-separated IPs/CIDRs; k3s pod network default. See docker-zulip entrypoint LOADBALANCER_IPS.
+    LOADBALANCER_IPS: "10.42.0.0/16"
+    # TLS terminates at Traefik (Ingress). Pod sees HTTP with X-Forwarded-Proto: https.
+    ZULIP_CUSTOM_SETTINGS: |
+      USE_X_FORWARDED_HOST = True
+      SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+      LOAD_BALANCER_IPS = ["10.42.0.0/16"]
+      # Stable URL (no token): https://<SETTING_EXTERNAL_HOST>/new/
+      # Anyone who can reach the server may start org creation; turn off for locked-down servers.
+      OPEN_REALM_CREATION = True
 
-# Reach the UI without an ingress controller (demo / campus firewall).
-# For production, use ingress + TLS instead and set service.type back to ClusterIP.
+# ClusterIP + Ingress (k3s default Traefik). OpenStack SG: TCP 80 + 443.
 service:
-  type: NodePort
+  type: ClusterIP
+
+# Host MUST match zulip.environment.SETTING_EXTERNAL_HOST in values-secret.yaml.
+# TLS: create Secret `chameleon-nip-tls` in namespace `zulip` (see RUNBOOK_zulip_access_after_setup.md).
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: zulip.129.114.26.117.nip.io
+      paths:
+        - path: /
+  tls:
+    - secretName: chameleon-nip-tls
+      hosts:
+        - zulip.129.114.26.117.nip.io
 
 postgresql:
   primary:
@@ -53,10 +81,6 @@ postgresql:
 #       cpu: "4"
 #       memory: 8Gi
 #
-# ingress:
-#   enabled: true
-#   className: nginx
-#   tls:
-#     - secretName: zulip-tls-proj15
-#       hosts:
-#         - zulip.example.edu
+# Trusted public certs (optional, more moving parts): install cert-manager + ClusterIssuer
+# and set e.g. cert-manager.io/cluster-issuer on the Ingress; Let's Encrypt HTTP-01 works
+# if port 80 is reachable on this host for the nip.io name.

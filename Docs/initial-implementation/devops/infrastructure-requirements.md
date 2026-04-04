@@ -16,16 +16,17 @@ This file now reflects current deployment status. Keep updating it with measured
 ## Current validated deployment status
 
 - OpenStack VM + floating IP provisioned by Terraform and reachable by SSH.
-- k3s installed via Ansible.
-- MLflow stack deployed in `ml-platform`.
-- Zulip Helm release `zulip-proj15` deployed in `zulip` namespace.
-- Zulip-related pods (`zulip`, `postgresql`, `redis`, `rabbitmq`, `memcached`) reached running state.
-- One-time organization creation link generated successfully.
+- k3s installed via Ansible (bundled **Traefik** serves **Ingress** on **80/443**).
+- MLflow in `ml-platform`: Deployment, PVC, Service, **Ingress** (`mlflow.<fip>.nip.io`), TLS Secret `chameleon-nip-tls`.
+- Zulip Helm release `zulip-proj15` in `zulip`: ClusterIP + **Ingress** (`zulip.<fip>.nip.io`), same TLS secret name; `LOADBALANCER_IPS` / proxy settings for Traefik documented in `values-chameleon.yaml`.
+- Security group: **TCP 22, 80, 443** toward the floating IP (443 required for browser HTTPS).
+- Zulip: organization creation verified in browser (stable **`/new/`** path enabled for demos + optional CLI single-use links).
 
 ## Evidence commands to run and paste into notes
 
 ```bash
 kubectl get pods -A -o wide
+kubectl get ingress -A
 kubectl top pod -A
 kubectl top node
 kubectl get svc -n ml-platform

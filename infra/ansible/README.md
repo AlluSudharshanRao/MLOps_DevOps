@@ -10,7 +10,7 @@ This directory is the **configuration-as-code** counterpart to Terraform IaC.
 
 ## Prereqs on your laptop or jump host
 
-- `ansible` installed
+- **`ansible-core`** installed in a **clean environment** (recommended: a dedicated `venv`, not Conda `base` mixed with `pip install ansible`)
 - SSH access to the VM (keypair from Chameleon)
 - `helm` optional on the controller: the Zulip playbook installs Helm 3 on the target VM if missing
 - Optional: `kubectl` (helpful for verifying)
@@ -78,4 +78,26 @@ Adjust `zulip_chart_dir` if you cloned somewhere other than `~/docker-zulip`. St
 `values-secret.yaml` (on the VM as `~/values-secret.yaml` in the example) must stay **out of Git**.
 
 Alternative without a chart clone on the VM: on the VM run `helm install ... oci://ghcr.io/zulip/helm-charts/zulip -f ...` yourself; this playbook expects a local chart directory for `helm dependency update`.
+
+## Troubleshooting
+
+### `ModuleNotFoundError: No module named 'ansible.module_utils.six.moves'` (during Gathering Facts)
+
+Your **control node** Ansible install is incomplete or conflicting (common with **Conda `base` + pip**). Remote modules are built from that install, so every task can fail the same way.
+
+**Fix:** use a dedicated virtualenv and reinstall `ansible-core`:
+
+```bash
+python3 -m venv ~/.venv-ansible-mlops
+source ~/.venv-ansible-mlops/bin/activate
+pip install -U pip ansible-core
+which ansible-playbook
+ansible-playbook --version
+```
+
+Run all playbooks with `source ~/.venv-ansible-mlops/bin/activate` first. Avoid running `ansible-playbook` from an environment where `pip show ansible-core` is missing or broken.
+
+### SSH: `Permissions ... for '...pem' are too open` (WSL)
+
+If the key lives under `/mnt/c/...`, `chmod` often cannot lock it down. Copy the key into the Linux home directory and point `ansible_ssh_private_key_file` at that copy (`chmod 600`). See comments in `inventory.example.ini`.
 

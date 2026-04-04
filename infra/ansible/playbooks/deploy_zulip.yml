@@ -1,6 +1,7 @@
 - name: Deploy Zulip via Helm chart (docker-zulip)
   hosts: chameleon
   become: true
+  gather_facts: false
   vars:
     kubeconfig_path: "/home/{{ ansible_user }}/.kube/config"
     project_id_suffix: "proj99"

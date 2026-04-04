@@ -13,6 +13,8 @@ Historical snapshot note:
 - This file preserves the original early-phase sequence and debugging context.
 - Some "next steps" listed below were completed later; refer to `FLOW_start_to_current.md` for current completion status.
 
+**Current runtime access (post–Apr 2026):** Zulip and MLflow use **k3s Traefik Ingress** and **HTTPS** on **443** (`zulip.<fip>.nip.io`, `mlflow.<fip>.nip.io`). Day-2 access, TLS Secret creation, and SG rules are in **`RUNBOOK_zulip_access_after_setup.md`** (not VM nginx on 8080 unless you intentionally keep a legacy path).
+
 ## Scope (what’s completed)
 
 - **Chameleon lease/reservation** on `KVM@TACC` for **1× `m1.xxlarge`** instance.
