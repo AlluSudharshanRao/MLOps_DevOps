@@ -7,7 +7,7 @@
 ## Prereqs
 
 - Cluster storage class for PostgreSQL / Redis / RabbitMQ PVCs (e.g. k3s `local-path`).
-- **Ingress:** k3s default **Traefik**; **`values-chameleon.yaml`** enables Ingress + TLS secret name **`chameleon-nip-tls`** (create the Secret on the cluster — see `Docs/initial-implementation/devops/RUNBOOK_zulip_access_after_setup.md`).
+- **Ingress:** k3s default **Traefik**; **`values-chameleon.yaml`** enables Ingress + TLS secret name **`chameleon-nip-tls`** (create the Secret on the cluster — see repo root [`GETTING_STARTED.md`](../../GETTING_STARTED.md), *Step 6 — TLS Secret for Ingress*).
 - Hostname aligned with **`SETTING_EXTERNAL_HOST`**: **`zulip.<floating-ip>.nip.io`** (subdomain form so MLflow can use **`mlflow.<same-ip>.nip.io`**).
 - Env **`LOADBALANCER_IPS`** (pod CIDR, e.g. `10.42.0.0/16`) so Zulip’s nginx trusts Traefik; optional **`SETTING_OPEN_REALM_CREATION`** for stable **`/new/`**.
 - TLS secret and `values-secret.yaml` **not** committed to Git.
@@ -34,4 +34,4 @@ helm install zulip-proj99 ./zulip-chart \
 2. `kubectl get pods,svc,ingress -n zulip` — Ingress host **`zulip.<fip>.nip.io`**, TLS attached.
 3. Browser: **`https://zulip.<fip>.nip.io/`** (accept self-signed warning if applicable); org creation via **`/new/`** or CLI link.
 
-See `values-chameleon.yaml` and `values-secret.yaml.example` for proxy, TLS, and realm-creation flags. Full narrative: `Docs/initial-implementation/devops/FLOW_start_to_current.md`.
+See `values-chameleon.yaml` and `values-secret.yaml.example` for proxy, TLS, and realm-creation flags. End-to-end commands: [`GETTING_STARTED.md`](../../GETTING_STARTED.md).

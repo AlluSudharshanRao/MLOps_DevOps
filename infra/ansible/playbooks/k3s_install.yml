@@ -1,3 +1,7 @@
+---
+# Single-node k3s on the course VM; kubeconfig copied to the Ansible SSH user (~/.kube/config).
+# Prereq: inventory.ini points at the VM; SSH key permissions 0600 (not 0777 on Windows mounts).
+# Run: ansible-playbook -i ../inventory.ini playbooks/k3s_install.yml
 - name: Install k3s on Chameleon VM
   hosts: chameleon
   become: true

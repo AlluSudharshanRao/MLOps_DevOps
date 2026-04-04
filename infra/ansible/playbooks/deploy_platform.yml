@@ -1,3 +1,7 @@
+---
+# Copies k8s/ manifests to the VM and applies base namespaces + MLflow (Kustomize).
+# Expects k3s and ~/.kube/config from k3s_install. Repo path on VM: /opt/mlops_project.
+# Run: ansible-playbook -i ../inventory.ini playbooks/deploy_platform.yml
 - name: Deploy namespaces + MLflow platform service
   hosts: chameleon
   become: true

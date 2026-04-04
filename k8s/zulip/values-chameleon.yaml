@@ -1,4 +1,5 @@
 # Team overrides for Helm install of Zulip (docker-zulip chart).
+# Ingress hosts use RFC 5737 documentation IP 203.0.113.10 — replace with your floating IP everywhere (Ingress, TLS SAN, SETTING_EXTERNAL_HOST).
 # Required secrets and hostnames live in values-secret.yaml (gitignored); see
 # values-secret.yaml.example in this folder.
 #
@@ -34,13 +35,13 @@ ingress:
   enabled: true
   className: traefik
   hosts:
-    - host: zulip.129.114.26.117.nip.io
+    - host: zulip.203.0.113.10.nip.io
       paths:
         - path: /
   tls:
     - secretName: chameleon-nip-tls
       hosts:
-        - zulip.129.114.26.117.nip.io
+        - zulip.203.0.113.10.nip.io
 
 postgresql:
   primary:

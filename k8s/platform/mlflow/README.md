@@ -1,5 +1,7 @@
 # MLflow (shared platform service)
 
+PVC uses **`storageClassName: local-path`** (k3s default). On another cluster, edit `pvc.yaml` to your provisioner. See repo root [`ARCHITECTURE.md`](../../../ARCHITECTURE.md).
+
 Apply after namespaces exist:
 
 ```bash

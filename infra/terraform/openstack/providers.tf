@@ -1,3 +1,4 @@
+# Chameleon OpenStack: VM, network, floating IP. Auth via application credential (preferred) or user/pass.
 # Credentials: pick ONE approach.
 # 1) Recommended (SSO / college login): application credential from Horizon → Identity → Application Credentials.
 #    Set TF_VAR_application_credential_id / TF_VAR_application_credential_secret, or use env vars:

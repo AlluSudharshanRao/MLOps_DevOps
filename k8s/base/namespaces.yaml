@@ -1,3 +1,7 @@
+# Team namespaces for platform, product, and future ML workloads.
+# Apply once per cluster, or create the same names via Terraform — not both.
+# Usage: kubectl apply -f k8s/base/namespaces.yaml
+---
 apiVersion: v1
 kind: Namespace
 metadata:

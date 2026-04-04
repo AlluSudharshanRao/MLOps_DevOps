@@ -1,3 +1,7 @@
+---
+# Installs Helm if missing, then helm upgrade --install for docker-zulip chart.
+# Pass -e zulip_chart_dir=... and values files; see infra/ansible/README.md.
+# Run: ansible-playbook -i ../inventory.ini playbooks/deploy_zulip.yml -e ...
 - name: Deploy Zulip via Helm chart (docker-zulip)
   hosts: chameleon
   become: true

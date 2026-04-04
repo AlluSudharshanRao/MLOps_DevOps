@@ -60,7 +60,7 @@ cp ~/docker-zulip/helm/zulip/values-local.yaml.example ~/values-secret.yaml
 nano ~/values-secret.yaml   # set SETTING_EXTERNAL_HOST, admin email, SECRETS_secret_key, DB passwords
 ```
 
-Use a hostname you can open in a browser. For a floating IP only, a common pattern is **nip.io**, e.g. `129.114.26.117.nip.io` for IP `129.114.26.117`, and set `SETTING_EXTERNAL_HOST` to that exact string.
+Use a hostname you can open in a browser. For a floating IP only, a common pattern is **nip.io**, e.g. `203.0.113.10.nip.io` for IP `203.0.113.10` (replace with **your** Chameleon floating IP), and set `SETTING_EXTERNAL_HOST` to the matching `zulip.<ip>.nip.io` string.
 
 4) Deploy Zulip chart **from your laptop** (WSL/Linux with Ansible), with **VM paths**:
 
@@ -68,7 +68,7 @@ Use a hostname you can open in a browser. For a floating IP only, a common patte
 cd infra/ansible
 ansible-playbook -i inventory.ini playbooks/deploy_zulip.yml \
   -e zulip_chart_dir=/home/cc/docker-zulip/helm/zulip \
-  -e project_id_suffix=proj15 \
+  -e project_id_suffix=proj99 \
   -e zulip_values_file=/opt/mlops_project/k8s/zulip/values-chameleon.yaml \
   -e zulip_secret_values_file=/home/cc/values-secret.yaml
 ```

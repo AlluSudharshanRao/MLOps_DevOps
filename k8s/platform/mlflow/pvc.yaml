@@ -1,3 +1,6 @@
+# Persistent storage for MLflow DB + artifacts (survives pod restarts).
+# k3s: local-path is typical. OpenStack CSI: set storageClassName to your cluster class.
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -6,8 +9,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: local-path
   resources:
     requests:
       storage: 20Gi
-  # Set storageClassName to your cluster's default or course-provided class, e.g.:
-  # storageClassName: cinder-csi

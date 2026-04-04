@@ -1,3 +1,6 @@
+# Course / personal documentation (not versioned in this repo)
+Docs/
+
 # Secrets and local env (never commit)
 .env
 venv
@@ -8,6 +11,7 @@ venv
 kubeconfig
 inventory.ini
 values-secret.yaml
+**/values-secret.yaml
 
 # Terraform
 .terraform/
@@ -23,6 +27,7 @@ vendor/docker-zulip/
 
 # Python / ML
 .venv/
+.venv-ans/
 __pycache__/
 .pytest_cache/
 .mlflow/

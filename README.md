@@ -1,4 +1,4 @@
-# MLOps Project - Zulip on Chameleon (Solo DevOps Repo)
+# MLOps Project - Zulip on Chameleon
 
 This repository tracks my DevOps/platform work for the MLOps course project: provisioning and operating a self-hosted Zulip + platform services stack on Chameleon Cloud using Infrastructure as Code and Configuration as Code.
 
@@ -19,12 +19,13 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 - **Zulip** from `docker-zulip/helm/zulip`: ClusterIP Service + **Ingress** (`zulip.<fip>.nip.io`), same TLS pattern; values in `k8s/zulip/values-chameleon.yaml` include proxy trust (`LOADBALANCER_IPS` / `SETTING_*`) for Traefik.
 - Browser access: **HTTPS** on port **443** (OpenStack SG must allow **80** and **443**). Chrome shows “Not secure” for self-signed certs until trusted or replaced with Let’s Encrypt.
 - Org creation: **`/new/`** enabled for class demos via `SETTING_OPEN_REALM_CREATION` (see docs); single-use CLI links still work.
-- Detailed ops docs: `Docs/initial-implementation/devops/` (start with `README_docs_guide.md`).
+- Detailed ops docs: keep under `Docs/` locally (that tree is **not** tracked in Git; see `.gitignore`).
 
 ## Repository structure
 
-- `Docs/`
-  - Primary project documentation, including end-to-end flow, command history, explanations, and requirements.
+- [`GETTING_STARTED.md`](GETTING_STARTED.md) — **end-to-end usage**: what is implemented and command-by-command runbook (outside `Docs/`).
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system diagram and IaC/CaC split.
+- `Docs/` — milestone PDFs and write-ups **local only** (gitignored).
 - `infra/`
   - `terraform/openstack/`: Chameleon infrastructure provisioning (VM/network/FIP).
   - `terraform/k8s-apps/`: optional Terraform-managed k8s app path.
@@ -47,3 +48,15 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 
 - This is a personal working repository for my DevOps track deliverables.
 - Secrets are not committed (`values-secret.yaml`, credentials, private keys are excluded via `.gitignore`).
+- For a **public** clone: see [`SECURITY.md`](SECURITY.md). Tracked YAML uses placeholder hosts/IPs; replace with your environment before apply.
+
+## Before you push (quick check)
+
+From the repo root (Git Bash or similar):
+
+```bash
+git grep -i "BEGIN.*PRIVATE KEY" -- infra k8s README.md GETTING_STARTED.md ARCHITECTURE.md SECURITY.md 2>/dev/null || true
+git grep -i "application_credential_secret" -- "*.tf" "*.yaml" "*.yml" 2>/dev/null || true
+```
+
+Inspect any unexpected hits. Paths like `terraform.tfvars` and `inventory.ini` must stay untracked (see `.gitignore`).
