@@ -27,3 +27,9 @@ resource "kubernetes_namespace" "ml_data" {
     name = "ml-data"
   }
 }
+
+resource "kubernetes_namespace" "monitoring" {
+  metadata {
+    name = "monitoring"
+  }
+}

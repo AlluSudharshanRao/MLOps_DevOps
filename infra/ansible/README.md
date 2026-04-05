@@ -4,8 +4,8 @@ This directory is the **configuration-as-code** counterpart to Terraform IaC.
 
 ## What this does
 
-- Installs a **single-node k3s** cluster on your Chameleon VM (good enough for the DevOps initial milestone).
-- Deploys **shared platform services** (MLflow) with **persistent storage**.
+- Installs a **single-node k3s** cluster on your Chameleon VM.
+- Deploys **shared platform services** (MLflow, MinIO, Prometheus, Grafana) with **persistent storage** where configured.
 - Deploys **Zulip** on Kubernetes using the upstream Helm chart from [docker-zulip](https://github.com/zulip/docker-zulip).
 
 ## Prereqs on your laptop or jump host
@@ -42,11 +42,13 @@ terraform output -raw ansible_inventory_ini
 ansible-playbook -i inventory.ini playbooks/k3s_install.yml
 ```
 
-2) Deploy MLflow (PVC-backed) and namespaces:
+2) Deploy namespaces, MLflow, MinIO, and Prometheus/Grafana (`deploy_platform` creates `minio-root` in `ml-platform` and `grafana-admin` in `monitoring` if missing):
 
 ```bash
 ansible-playbook -i inventory.ini playbooks/deploy_platform.yml
 ```
+
+Retrieve the Grafana admin password: `kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d && echo` (on the VM or with kubeconfig). Ensure TLS Secret `chameleon-nip-tls` exists in **`monitoring`** for the Grafana Ingress (see [`GETTING_STARTED.md`](../../GETTING_STARTED.md)).
 
 3) **Zulip — one-time prep on the VM** (SSH as `cc`; Ansible runs Helm on the **VM**, so paths below are **on the VM**, not your laptop):
 

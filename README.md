@@ -8,7 +8,7 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 
 - Provision OpenStack infrastructure on Chameleon (`KVM@TACC`) with Terraform.
 - Configure and operate Kubernetes (k3s) with Ansible.
-- Deploy platform service (MLflow) and application service (Zulip via Helm).
+- Deploy platform services (MLflow, MinIO) and application service (Zulip via Helm).
 - Document the full engineering flow, issues, fixes, and operational evidence.
 
 ## Current implementation status
@@ -16,6 +16,8 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 - OpenStack VM + networking + floating IP provisioned and reachable.
 - k3s installed and verified (default **Traefik** ingress controller).
 - **MLflow** in `ml-platform`: Deployment + PVC + ClusterIP Service + **Ingress** (`mlflow.<fip>.nip.io`), TLS via shared secret `chameleon-nip-tls` (self-signed for demos).
+- **MinIO** in `ml-platform`: S3-compatible API + web console; **Ingresses** `minio.<fip>.nip.io` and `minio-console.<fip>.nip.io`; credentials in Secret `minio-root` (bootstrapped by `deploy_platform.yml`).
+- **Prometheus** + **Grafana** in `monitoring`: PVC-backed TSDB and Grafana data; **Ingress** for Grafana (`grafana.<fip>.nip.io`) and optional public **Ingress** for Prometheus (`prometheus.<fip>.nip.io`) in `k8s/platform/observability/`.
 - **Zulip** from `docker-zulip/helm/zulip`: ClusterIP Service + **Ingress** (`zulip.<fip>.nip.io`), same TLS pattern; values in `k8s/zulip/values-chameleon.yaml` include proxy trust (`LOADBALANCER_IPS` / `SETTING_*`) for Traefik.
 - Browser access: **HTTPS** on port **443** (OpenStack SG must allow **80** and **443**). Chrome shows “Not secure” for self-signed certs until trusted or replaced with Let’s Encrypt.
 - Org creation: **`/new/`** enabled for class demos via `SETTING_OPEN_REALM_CREATION` (see docs); single-use CLI links still work.
@@ -25,13 +27,14 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 
 - [`GETTING_STARTED.md`](GETTING_STARTED.md) — **end-to-end usage**: what is implemented and command-by-command runbook (outside `Docs/`).
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — system diagram and IaC/CaC split.
+- [`infrastructure-requirements.md`](infrastructure-requirements.md) — **DevOps deliverable**: CPU/memory/PVC table, Chameleon right-sizing evidence template, Zulip vs platform split.
 - `Docs/` — milestone PDFs and write-ups **local only** (gitignored).
 - `infra/`
   - `terraform/openstack/`: Chameleon infrastructure provisioning (VM/network/FIP).
   - `terraform/k8s-apps/`: optional Terraform-managed k8s app path.
   - `ansible/`: k3s install and app deployment playbooks.
 - `k8s/`
-  - Kubernetes manifests and Helm value overlays (MLflow + Zulip).
+  - Kubernetes manifests and Helm value overlays (MLflow, MinIO, Prometheus/Grafana, Zulip).
 - `contracts/`
   - Sample request/response artifacts used by project milestones.
 - `zulip/`

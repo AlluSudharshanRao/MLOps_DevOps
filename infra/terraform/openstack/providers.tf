@@ -10,6 +10,7 @@ provider "openstack" {
   auth_url = var.openstack_auth_url
   region   = var.openstack_region
 
+  tenant_id   = var.openstack_tenant_id != "" ? var.openstack_tenant_id : null
   tenant_name = var.openstack_tenant_name != "" ? var.openstack_tenant_name : null
   user_name   = var.openstack_user_name != "" ? var.openstack_user_name : null
   password    = var.openstack_password

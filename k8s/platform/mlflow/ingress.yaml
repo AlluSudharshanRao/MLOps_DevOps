@@ -1,5 +1,5 @@
 # HTTPS front door for MLflow (k3s Traefik). TLS Secret must exist in this namespace.
-# Hosts use placeholder IP 203.0.113.10 (RFC 5737); replace with your floating IP; SAN on cert must match.
+# Host must match browser URL and TLS cert SAN (replace IP if your floating IP changes).
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -13,9 +13,9 @@ spec:
   tls:
     - secretName: chameleon-nip-tls
       hosts:
-        - mlflow.203.0.113.10.nip.io
+        - mlflow.129.114.26.117.nip.io
   rules:
-    - host: mlflow.203.0.113.10.nip.io
+    - host: mlflow.129.114.26.117.nip.io
       http:
         paths:
           - path: /

@@ -14,7 +14,7 @@ This guide describes **what this repository implements** and **how to run it end
 6. [Step 2 — Provision the VM with Terraform](#6-step-2--provision-the-vm-with-terraform)
 7. [Step 3 — Ansible inventory](#7-step-3--ansible-inventory)
 8. [Step 4 — Install k3s](#8-step-4--install-k3s)
-9. [Step 5 — Deploy namespaces and MLflow](#9-step-5--deploy-namespaces-and-mlflow)
+9. [Step 5 — Deploy namespaces, MLflow, MinIO, and observability](#9-step-5--deploy-namespaces-mlflow-minio-and-observability)
 10. [Step 6 — TLS Secret for Ingress (Traefik)](#10-step-6--tls-secret-for-ingress-traefik)
 11. [Step 7 — Prepare Zulip Helm values (secrets)](#11-step-7--prepare-zulip-helm-values-secrets)
 12. [Step 8 — Deploy Zulip with Ansible + Helm](#12-step-8--deploy-zulip-with-ansible--helm)
@@ -32,9 +32,11 @@ This guide describes **what this repository implements** and **how to run it end
 | Single-node Kubernetes | **k3s** via `infra/ansible/playbooks/k3s_install.yml` |
 | Ingress + HTTPS (demo) | k3s default **Traefik**; TLS Secret `chameleon-nip-tls` |
 | Experiment tracking | **MLflow** in namespace `ml-platform` (`k8s/platform/mlflow/`) |
+| Object storage (S3 API) | **MinIO** in namespace `ml-platform` (`k8s/platform/minio/`) |
+| Metrics + dashboards | **Prometheus** + **Grafana** in namespace `monitoring` (`k8s/platform/observability/`) |
 | Team chat (base product) | **Zulip** from [docker-zulip](https://github.com/zulip/docker-zulip) Helm chart, values under `k8s/zulip/` |
 
-Traffic flow: **Internet → floating IP :443 → Traefik → Ingress rules → MLflow / Zulip Services.**
+Traffic flow: **Internet → floating IP :443 → Traefik → Ingress rules → MLflow, MinIO (API + console), Grafana, Prometheus (optional Ingress), and Zulip Services.**
 
 ---
 
@@ -56,10 +58,12 @@ Traffic flow: **Internet → floating IP :443 → Traefik → Ingress rules → 
 |------|------|
 | `infra/terraform/openstack/` | VM, network, floating IP |
 | `infra/ansible/playbooks/k3s_install.yml` | Install k3s |
-| `infra/ansible/playbooks/deploy_platform.yml` | Copy `k8s/` to VM; apply namespaces + MLflow |
+| `infra/ansible/playbooks/deploy_platform.yml` | Copy `k8s/` to VM; apply namespaces + MLflow + MinIO + Prometheus/Grafana |
 | `infra/ansible/playbooks/deploy_zulip.yml` | Helm install/upgrade Zulip on the cluster |
 | `k8s/base/namespaces.yaml` | `zulip`, `ml-platform`, teammate namespaces |
 | `k8s/platform/mlflow/` | MLflow Deployment, PVC, Service, Ingress (Kustomize) |
+| `k8s/platform/minio/` | MinIO Deployment, PVC, Service, API + console Ingresses (Kustomize) |
+| `k8s/platform/observability/` | Prometheus + Grafana (PVCs, RBAC, Grafana Ingress) |
 | `k8s/zulip/values-chameleon.yaml` | Non-secret Helm overrides (Ingress, storage class, proxy) |
 | `k8s/zulip/values-secret.yaml.example` | Template for **local** `values-secret.yaml` (gitignored) |
 
@@ -83,11 +87,20 @@ Tracked YAML uses a **placeholder floating IP** (e.g. RFC 5737 documentation add
 
 - `k8s/zulip/values-chameleon.yaml` — Ingress `host` / TLS `hosts`
 - `k8s/platform/mlflow/ingress.yaml` — rules and TLS `hosts`
+- `k8s/platform/minio/ingress-api.yaml` and `ingress-console.yaml` — API and console hosts / TLS `hosts`
+- `k8s/platform/minio/deployment.yaml` — `MINIO_SERVER_URL` and `MINIO_BROWSER_REDIRECT_URL` (must match those Ingress URLs)
+- `k8s/platform/observability/ingress-grafana.yaml` — Grafana host / TLS `hosts`
+- `k8s/platform/observability/ingress-prometheus.yaml` — Prometheus host / TLS `hosts` (if used)
+- `k8s/platform/observability/deployment-grafana.yaml` — `GF_SERVER_ROOT_URL` (must match Ingress URL)
 
 Use a consistent hostname pattern, e.g.:
 
 - Zulip: `zulip.<YOUR_FLOATING_IP>.nip.io`
 - MLflow: `mlflow.<YOUR_FLOATING_IP>.nip.io`
+- MinIO API: `minio.<YOUR_FLOATING_IP>.nip.io`
+- MinIO console: `minio-console.<YOUR_FLOATING_IP>.nip.io`
+- Grafana: `grafana.<YOUR_FLOATING_IP>.nip.io`
+- Prometheus (optional): `prometheus.<YOUR_FLOATING_IP>.nip.io`
 
 Commit or keep these edits local according to your policy; **never** commit secrets.
 
@@ -166,7 +179,7 @@ k3s writes kubeconfig to `/etc/rancher/k3s/k3s.yaml` on the VM; the playbook cop
 
 ---
 
-## 9. Step 5 — Deploy namespaces and MLflow
+## 9. Step 5 — Deploy namespaces, MLflow, MinIO, and observability
 
 ```bash
 cd infra/ansible
@@ -177,6 +190,23 @@ This copies `k8s/` to `/opt/mlops_project/k8s/` on the VM and runs:
 
 - `kubectl apply -f .../k8s/base/namespaces.yaml`
 - `kubectl apply -k .../k8s/platform/mlflow/`
+- Creates Secret **`minio-root`** in **`ml-platform`** if it does not exist (`root-user=minioadmin`, random `root-password`).
+- `kubectl apply -k .../k8s/platform/minio/`
+- Creates Secret **`grafana-admin`** in **`monitoring`** if it does not exist (random password).
+- `kubectl apply -k .../k8s/platform/observability/`
+
+**MinIO credentials** (after first apply):
+
+```bash
+kubectl get secret minio-root -n ml-platform -o jsonpath='{.data.root-user}' | base64 -d && echo
+kubectl get secret minio-root -n ml-platform -o jsonpath='{.data.root-password}' | base64 -d && echo
+```
+
+**Grafana password** (after first apply):
+
+```bash
+kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d && echo
+```
 
 **Idempotency:** if you also create the same namespaces with Terraform (`infra/terraform/k8s-apps/`), use **one** mechanism only to avoid drift.
 
@@ -184,14 +214,14 @@ This copies `k8s/` to `/opt/mlops_project/k8s/` on the VM and runs:
 
 ## 10. Step 6 — TLS Secret for Ingress (Traefik)
 
-Ingress manifests reference TLS Secret name **`chameleon-nip-tls`** in namespaces **`zulip`** and **`ml-platform`**. Create a certificate whose **SAN** includes both hostnames (replace `<YOUR_FLOATING_IP>`):
+Ingress manifests reference TLS Secret name **`chameleon-nip-tls`** in namespaces **`zulip`**, **`ml-platform`**, and **`monitoring`**. Create a certificate whose **SAN** includes every public hostname (replace `<YOUR_FLOATING_IP>`):
 
 ```bash
 # Run on any host with openssl; adjust Subject Alternative Names to match your Ingress hosts.
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout tls.key -out tls.crt \
   -subj "/CN=zulip.<YOUR_FLOATING_IP>.nip.io" \
-  -addext "subjectAltName=DNS:zulip.<YOUR_FLOATING_IP>.nip.io,DNS:mlflow.<YOUR_FLOATING_IP>.nip.io"
+  -addext "subjectAltName=DNS:zulip.<YOUR_FLOATING_IP>.nip.io,DNS:mlflow.<YOUR_FLOATING_IP>.nip.io,DNS:minio.<YOUR_FLOATING_IP>.nip.io,DNS:minio-console.<YOUR_FLOATING_IP>.nip.io,DNS:grafana.<YOUR_FLOATING_IP>.nip.io,DNS:prometheus.<YOUR_FLOATING_IP>.nip.io"
 ```
 
 Load the Secret (run where `kubectl` uses the cluster kubeconfig, e.g. on the VM as `cc`):
@@ -203,6 +233,9 @@ kubectl create secret tls chameleon-nip-tls -n zulip \
   --cert=tls.crt --key=tls.key --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl create secret tls chameleon-nip-tls -n ml-platform \
+  --cert=tls.crt --key=tls.key --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret tls chameleon-nip-tls -n monitoring \
   --cert=tls.crt --key=tls.key --dry-run=client -o yaml | kubectl apply -f -
 ```
 
@@ -270,6 +303,7 @@ On the VM (or with `KUBECONFIG` pointing at the cluster):
 kubectl get nodes
 kubectl get ns
 kubectl get pods,svc,ingress -n ml-platform
+kubectl get pods,svc,ingress -n monitoring
 kubectl get pods,svc,ingress -n zulip
 ```
 
@@ -278,9 +312,12 @@ kubectl get pods,svc,ingress -n zulip
 ```bash
 curl -skI -H "Host: zulip.<YOUR_FLOATING_IP>.nip.io" "https://<YOUR_FLOATING_IP>/"
 curl -skI -H "Host: mlflow.<YOUR_FLOATING_IP>.nip.io" "https://<YOUR_FLOATING_IP>/"
+curl -skI -H "Host: grafana.<YOUR_FLOATING_IP>.nip.io" "https://<YOUR_FLOATING_IP>/"
+curl -skI -H "Host: minio.<YOUR_FLOATING_IP>.nip.io" "https://<YOUR_FLOATING_IP>/"
+curl -skI -H "Host: minio-console.<YOUR_FLOATING_IP>.nip.io" "https://<YOUR_FLOATING_IP>/"
 ```
 
-**Browser:** `https://zulip.<YOUR_FLOATING_IP>.nip.io/` and `https://mlflow.<YOUR_FLOATING_IP>.nip.io/` (accept cert warning if self-signed).
+**Browser:** `https://zulip.<YOUR_FLOATING_IP>.nip.io/`, `https://mlflow.<YOUR_FLOATING_IP>.nip.io/`, `https://minio-console.<YOUR_FLOATING_IP>.nip.io/` (MinIO console; user from `minio-root` Secret), `https://grafana.<YOUR_FLOATING_IP>.nip.io/` (log in with `admin` and the `grafana-admin` Secret password), and optionally `https://prometheus.<YOUR_FLOATING_IP>.nip.io/` — accept cert warning if self-signed.
 
 If **`/new/`** org creation is enabled, ensure `SETTING_OPEN_REALM_CREATION` is set consistently in values files and recycle the Zulip pod after `helm upgrade` when changing env.
 
@@ -288,7 +325,8 @@ If **`/new/`** org creation is enabled, ensure `SETTING_OPEN_REALM_CREATION` is 
 
 ## 14. Operational notes
 
-- **Traefik** is the default k3s ingress controller; `ingressClassName: traefik` is set in the MLflow Ingress and Zulip values.
+- **Traefik** is the default k3s ingress controller; `ingressClassName: traefik` is set on MLflow, MinIO, Grafana, Prometheus (if exposed), and Zulip Ingresses.
+- **Prometheus/Grafana:** Prometheus scrapes pods annotated with `prometheus.io/scrape: "true"` (MLflow includes these). Prometheus has no public Ingress by default; use Grafana’s Explore or add dashboards.
 - **Storage:** examples target k3s **`local-path`**; change `storageClassName` / Helm values if your cluster uses another provisioner.
 - **Optional path:** `infra/terraform/k8s-apps/` can manage some Kubernetes resources with Terraform; this is optional and orthogonal to the Ansible flow above.
 - **`zulip/` submodule:** upstream source reference only; runtime uses published images via the docker-zulip chart.
@@ -305,5 +343,8 @@ If **`/new/`** org creation is enabled, ensure `SETTING_OPEN_REALM_CREATION` is 
 | Zulip **ProxyMisconfigurationError** | Traefik not trusted | Set **`LOADBALANCER_IPS`** to pod CIDR; confirm in pod env and `zulip.conf`; `helm upgrade` + pod restart |
 | HTTPS timeout | Security group | Allow **443** (and **80** if needed) on the floating IP |
 | Helm merge dropped env | Multiple `-f` files | Put critical env in the file that wins the merge or duplicate in `values-secret.yaml` as documented in chart comments |
+| Grafana **CrashLoop** / secret missing | `grafana-admin` not created | Run deploy_platform (bootstrap task) or `kubectl create secret generic grafana-admin ...` before `apply -k observability` |
+| Grafana login fails | Wrong password | `kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' \| base64 -d` |
+| MinIO **CreateContainerConfigError** | `minio-root` missing | Run deploy_platform (bootstrap task) or create `minio-root` with keys `root-user` and `root-password` before pods schedule |
 
-For deeper Ansible-only detail, see [`infra/ansible/README.md`](infra/ansible/README.md). For Zulip chart specifics, see [`k8s/zulip/README.md`](k8s/zulip/README.md).
+For deeper Ansible-only detail, see [`infra/ansible/README.md`](infra/ansible/README.md). For Zulip chart specifics, see [`k8s/zulip/README.md`](k8s/zulip/README.md). Observability manifests: [`k8s/platform/observability/README.md`](k8s/platform/observability/README.md).

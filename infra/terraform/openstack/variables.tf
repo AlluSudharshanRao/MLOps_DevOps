@@ -45,6 +45,12 @@ variable "application_credential_secret" {
   default     = ""
 }
 
+variable "openstack_tenant_id" {
+  description = "OpenStack project/tenant UUID from Horizon (optional; recommended with application credentials on Chameleon)"
+  type        = string
+  default     = ""
+}
+
 variable "instance_name" {
   description = "VM name suffix will be appended with project_id_suffix"
   type        = string
@@ -73,9 +79,14 @@ variable "network_id" {
 }
 
 variable "subnet_id" {
-  description = "Optional: subnet UUID for the router interface. If empty, uses the first subnet on network_id (from OpenStack)."
+  description = "Subnet UUID for the public router interface (Horizon → Network → Subnets). Required when create_public_router is true."
   type        = string
   default     = ""
+
+  validation {
+    condition     = !var.create_public_router || var.subnet_id != ""
+    error_message = "When create_public_router is true, subnet_id must be set to your tenant subnet UUID."
+  }
 }
 
 variable "floating_ip_pool" {

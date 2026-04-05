@@ -2,6 +2,8 @@
 
 PVC uses **`storageClassName: local-path`** (k3s default). On another cluster, edit `pvc.yaml` to your provisioner. See repo root [`ARCHITECTURE.md`](../../../ARCHITECTURE.md).
 
+The Deployment sets **Prometheus** scrape annotations (`prometheus.io/*`) for the optional stack in [`k8s/platform/observability/`](../observability/README.md); if metrics are unavailable at `/metrics`, targets may show as down until you change the path or disable scraping.
+
 Apply after namespaces exist:
 
 ```bash
