@@ -21,7 +21,7 @@ Each row is one **runnable container image** (or one Helm/chart bundle where not
 **Apply bundles**
 
 - All inference Deployments: `kubectl apply -k k8s/inference/`
-- Data stack (optional deploy; see [`data/README.md`](data/README.md)): `kubectl apply -k k8s/data/`
+- Data stack (optional deploy): `kubectl apply -k k8s/data/` (copy `minio-root` Secret into `ml-data` first; bucket `zulip-rewriter` on platform MinIO)
 - Namespaces: `kubectl apply -f k8s/base/namespaces.yaml`
 
 **Maintenance:** Replace placeholder `ghcr.io/proj15/...` image names with your team’s registry paths when images are published; add permanent Dockerfile links in the table for training/data rows when repos are final.
