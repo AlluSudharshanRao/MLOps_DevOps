@@ -1,6 +1,6 @@
 # Container inventory (team + platform)
 
-Each row is one **runnable container image** (or one Helm/chart bundle where noted). Training, serving, and data owners maintain Dockerfile / Compose links; DevOps provides the **Kubernetes manifest** path used on Chameleon (apply after `k8s/base/namespaces.yaml`).
+Each row is one **runnable container image** (or one Helm/chart bundle where noted). Training, serving, and data owners maintain Dockerfile / Compose links; DevOps provides the **equivalent Kubernetes manifest** path in this repo. **Deploying** those workloads on Chameleon is optional until the team integrates images and secrets; the manifests alone satisfy the “corresponding K8s manifest” requirement.
 
 | Role | Container / workload | Purpose | Dockerfile or Compose | Kubernetes manifest (this repo) | Notes |
 |------|----------------------|---------|------------------------|-----------------------------------|--------|
@@ -12,12 +12,16 @@ Each row is one **runnable container image** (or one Helm/chart bundle where not
 | **Serving** | `tone-generator` | LLM rewrite API | [Dockerfile](https://github.com/rithwik0908/mlops-serving/blob/main/serving/generator/Dockerfile) | [`inference/generator-deployment.yaml`](inference/generator-deployment.yaml) | |
 | **Training** | `classifier-training` | Fine-tune classifier | Teammate repo (Dockerfile path in Job comments) | [`training/classifier-training-job.yaml`](training/classifier-training-job.yaml) | Image: `ghcr.io/proj15/classifier-training:latest` — align tag with your registry |
 | **Training** | `generator-training` | Fine-tune generator | Teammate repo | [`training/generator-training-job.yaml`](training/generator-training-job.yaml) | Image: `ghcr.io/proj15/generator-training:latest` |
-| **Data** | `data-pipeline` | ETL → MinIO | Teammate repo | [`data/data-pipeline-job.yaml`](data/data-pipeline-job.yaml) | Image: `ghcr.io/proj15/data-pipeline:latest` |
+| **Data** | `ingest` | Load data → MinIO | [`data/ingest/Dockerfile`](https://github.com/Hard-Hustler/Zulip_Chat_Feature/blob/main/data/ingest/Dockerfile) | [`data/data-ingest-job.yaml`](data/data-ingest-job.yaml) | Part of [`docker-compose.yml`](https://github.com/Hard-Hustler/Zulip_Chat_Feature/blob/main/docker-compose.yml); Job |
+| **Data** | `online` | HTTP `/rewrite` service | [`data/online/Dockerfile`](https://github.com/Hard-Hustler/Zulip_Chat_Feature/blob/main/data/online/Dockerfile) | [`data/data-online-deployment.yaml`](data/data-online-deployment.yaml), [`data/data-online-service.yaml`](data/data-online-service.yaml) | Deployment + ClusterIP |
+| **Data** | `generator` | Calls `online`, writes to MinIO | [`data/generator/Dockerfile`](https://github.com/Hard-Hustler/Zulip_Chat_Feature/blob/main/data/generator/Dockerfile) | [`data/data-generator-deployment.yaml`](data/data-generator-deployment.yaml) | `REWRITE_URL` → in-cluster `data-online` Service |
+| **Data** | `batch` | Batch pipeline | [`data/batch/Dockerfile`](https://github.com/Hard-Hustler/Zulip_Chat_Feature/blob/main/data/batch/Dockerfile) | [`data/data-batch-job.yaml`](data/data-batch-job.yaml) | Compose `profiles: batch` → apply Job when needed |
 | **Platform (optional)** | Sealed Secrets controller | Git-safe encrypted secrets | [Upstream image](https://github.com/bitnami-labs/sealed-secrets) | [`addons/sealed-secrets/`](addons/sealed-secrets/) | Extra-credit / bonus path |
 
 **Apply bundles**
 
 - All inference Deployments: `kubectl apply -k k8s/inference/`
+- Data stack (optional deploy; see [`data/README.md`](data/README.md)): `kubectl apply -k k8s/data/`
 - Namespaces: `kubectl apply -f k8s/base/namespaces.yaml`
 
 **Maintenance:** Replace placeholder `ghcr.io/proj15/...` image names with your team’s registry paths when images are published; add permanent Dockerfile links in the table for training/data rows when repos are final.

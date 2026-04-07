@@ -1,0 +1,11 @@
+# Data stack — mirrors teammate docker-compose (minus MinIO; use ml-platform).
+# See README.md for Secret copy and image tags.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ml-data
+resources:
+  - data-online-service.yaml
+  - data-online-deployment.yaml
+  - data-generator-deployment.yaml
+  - data-ingest-job.yaml
+  - data-batch-job.yaml
