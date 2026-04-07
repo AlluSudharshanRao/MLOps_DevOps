@@ -28,10 +28,6 @@ helm install zulip-proj99 ./zulip-chart \
 
 `values-secret.yaml` should contain `zulipSecret`, database passwords, etc., and stay **local** or in a secret manager.
 
-## Course demo checklist
 
-1. Pods ready in `zulip` namespace.
-2. `kubectl get pods,svc,ingress -n zulip` — Ingress host **`zulip.<fip>.nip.io`**, TLS attached.
-3. Browser: **`https://zulip.<fip>.nip.io/`** (accept self-signed warning if applicable); org creation via **`/new/`** or CLI link.
 
-See `values-chameleon.yaml` and `values-secret.yaml.example` for proxy, TLS, and realm-creation flags. End-to-end commands: [`GETTING_STARTED.md`](../../GETTING_STARTED.md).
+See `values-chameleon.yaml` and `values-secret.yaml.example` for proxy, TLS, realm-creation flags, and **main Zulip container `resources`** (sized from `kubectl top`; re-tune after `helm upgrade`).

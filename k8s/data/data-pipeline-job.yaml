@@ -1,0 +1,64 @@
+# Data Pipeline Job — downloads, cleans, and uploads GYAFC + Stanford Politeness
+# datasets to MinIO for use by training jobs.
+# Owned by: Data Engineer role.
+# Dockerfile: teammate repo (see k8s/containers-matrix.md)
+# Namespace: ml-data  (provisioned in k8s/base/namespaces.yaml)
+#
+# Run once before any training job, or re-run on new data.
+# Apply: kubectl apply -f k8s/data/data-pipeline-job.yaml
+# Monitor: kubectl logs -n ml-data -l job-name=data-pipeline -f
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-pipeline
+  namespace: ml-data
+  labels:
+    app: data-pipeline
+    role: data
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: data-pipeline
+        role: data
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: data-pipeline
+          image: ghcr.io/proj15/data-pipeline:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MINIO_ENDPOINT
+              value: "minio.ml-platform.svc.cluster.local:9000"
+            - name: MINIO_BUCKET
+              value: "proj15"
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root
+                  key: root-user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root
+                  key: root-password
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow.ml-platform.svc.cluster.local:5000"
+            - name: OUTPUT_PATH
+              value: "/data/processed"
+          volumeMounts:
+            - name: workspace
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+      volumes:
+        - name: workspace
+          emptyDir: {}

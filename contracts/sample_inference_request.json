@@ -1,8 +1,0 @@
-{
-  "request_id": "550e8400-e29b-41d4-a716-446655440000",
-  "draft_text": "This is totally broken and you need to fix it ASAP!!!",
-  "stream_id": 42,
-  "topic": "backend-incident",
-  "locale": "en",
-  "requested_tones": ["formal", "friendly", "neutral"]
-}

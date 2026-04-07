@@ -50,6 +50,14 @@ ansible-playbook -i inventory.ini playbooks/deploy_platform.yml
 
 Retrieve the Grafana admin password: `kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d && echo` (on the VM or with kubeconfig). Ensure TLS Secret `chameleon-nip-tls` exists in **`monitoring`** for the Grafana Ingress (see [`GETTING_STARTED.md`](../../GETTING_STARTED.md)).
 
+**Optional — Sealed Secrets (bonus / Git-safe secrets):** install the controller so you can commit encrypted `SealedSecret` manifests instead of plaintext `Secret` YAML. After `k3s_install`:
+
+```bash
+ansible-playbook -i inventory.ini playbooks/install_sealed_secrets_controller.yml
+```
+
+Workflow, demo app, and rubric-style justification: [`k8s/addons/sealed-secrets/README.md`](../../k8s/addons/sealed-secrets/README.md).
+
 3) **Zulip — one-time prep on the VM** (SSH as `cc`; Ansible runs Helm on the **VM**, so paths below are **on the VM**, not your laptop):
 
 ```bash

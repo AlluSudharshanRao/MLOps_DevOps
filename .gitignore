@@ -1,4 +1,4 @@
-# Course / personal documentation (not versioned in this repo)
+# Course / personal documentation (entire tree local only — not versioned)
 Docs/
 
 # Secrets and local env (never commit)
@@ -28,6 +28,7 @@ vendor/docker-zulip/
 # Python / ML
 .venv/
 .venv-ans/
+**/.venv-openstack/
 __pycache__/
 .pytest_cache/
 .mlflow/

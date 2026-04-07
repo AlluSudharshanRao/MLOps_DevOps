@@ -28,13 +28,13 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 - [`GETTING_STARTED.md`](GETTING_STARTED.md) — **end-to-end usage**: what is implemented and command-by-command runbook (outside `Docs/`).
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — system diagram and IaC/CaC split.
 - [`infrastructure-requirements.md`](infrastructure-requirements.md) — **DevOps deliverable**: CPU/memory/PVC table, Chameleon right-sizing evidence template, Zulip vs platform split.
-- `Docs/` — milestone PDFs and write-ups **local only** (gitignored).
+- `Docs/` — milestone PDFs and personal write-ups **local only** (gitignored). The joint **container ↔ manifest** table lives in [`k8s/containers-matrix.md`](k8s/containers-matrix.md).
 - `infra/`
   - `terraform/openstack/`: Chameleon infrastructure provisioning (VM/network/FIP).
   - `terraform/k8s-apps/`: optional Terraform-managed k8s app path.
   - `ansible/`: k3s install and app deployment playbooks.
 - `k8s/`
-  - Kubernetes manifests and Helm value overlays (MLflow, MinIO, Prometheus/Grafana, Zulip).
+  - Kubernetes manifests and Helm value overlays (MLflow, MinIO, Prometheus/Grafana, Zulip, teammate training/serving/data workloads). Index: [`k8s/README.md`](k8s/README.md). **Container ↔ Dockerfile / manifest table:** [`k8s/containers-matrix.md`](k8s/containers-matrix.md).
 - `contracts/`
   - Sample request/response artifacts used by project milestones.
 - `zulip/`
@@ -51,7 +51,7 @@ Build a reproducible deployment pipeline from cloud resources to running Kuberne
 
 - This is a personal working repository for my DevOps track deliverables.
 - Secrets are not committed (`values-secret.yaml`, credentials, private keys are excluded via `.gitignore`).
-- For a **public** clone: see [`SECURITY.md`](SECURITY.md). Tracked YAML uses placeholder hosts/IPs; replace with your environment before apply.
+- For a **public** clone: see [`SECURITY.md`](SECURITY.md). Tracked Ingress YAML may pin **one** team floating IP (`*.nip.io`); replace with **your** IP, TLS SANs, and `SETTING_EXTERNAL_HOST` before apply.
 
 ## Before you push (quick check)
 

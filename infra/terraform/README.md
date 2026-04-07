@@ -13,4 +13,3 @@ Apply order:
 
 Plain YAML under `k8s/` remains valid **CaC in Git**; Ansible applies these (or Helm charts) as the cluster source of truth.
 
-**Note:** `Docs/ML_Operations.pdf` could not be machine-read here (no text layer). If the handout requires a specific layout (single root, Heat, Ansible, etc.), match that and treat this tree as the default MLOps split.

@@ -31,4 +31,4 @@ Do **not** create the same namespaces twice. Either:
 - Apply **only** this Terraform (remove duplicate `kubectl apply` for namespaces), or  
 - Skip `namespaces.tf` (delete or use `terraform apply -target=helm_release...`) and keep using `k8s/base/namespaces.yaml`.
 
-Pick one source of truth for the graders’ narrative.
+**Note:** This stack is **optional** CaC. The canonical teammate manifest paths for grading are under [`k8s/`](../../../k8s/README.md) (see [`k8s/containers-matrix.md`](../../../k8s/containers-matrix.md)).
