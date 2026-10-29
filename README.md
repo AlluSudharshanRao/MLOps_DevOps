@@ -1,3 +1,5 @@
+> **Note:** This repository holds the platform and DevOps track of my MLOps capstone. The main project repository is [Multi-Tone Communication Assistant for Zulip](https://github.com/AlluSudharshanRao/Multi-Tone-Communication-Assistant-for-Zulip---MLOps) — the full system: tone classification serving, the Zulip bridge, and promotion from staging to canary to production.
+
 # MLOps Project - Zulip on Chameleon
 
 This repository tracks my DevOps/platform work for the MLOps course project: provisioning and operating a self-hosted Zulip + platform services stack on Chameleon Cloud using Infrastructure as Code and Configuration as Code.
